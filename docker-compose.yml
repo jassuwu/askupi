@@ -2,8 +2,9 @@ services:
   app:
     build: .
     ports:
-      - 3000:3000
+      - 3001:3001
     environment:
       - NODE_ENV=production
       - NEXT_PUBLIC_HOSTED_URL=${NEXT_PUBLIC_HOSTED_URL}
       - GOOGLE_GENERATIVE_AI_API_KEY=${GOOGLE_GENERATIVE_AI_API_KEY}
+      - PORT=3001
