@@ -1,3 +1,3 @@
 # askupi
 
-coulda been great, but i abandon 😔
+works locally, but i abandon before i deploy 😔
