@@ -18,7 +18,7 @@ export const DropzoneZone = React.forwardRef<
   <DropzonePrimitive.Zone
     ref={ref}
     className={cn(
-      "cursor-pointer rounded-md border-2 border-dashed border-input p-6 shadow-sm transition-colors hover:border-accent-foreground/50 hover:bg-accent focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring data-[disabled]:cursor-not-allowed data-[drag-reject]:cursor-no-drop data-[no-click]:cursor-default data-[disabled]:border-inherit data-[drag-active]:border-accent-foreground/50 data-[drag-reject]:border-destructive data-[disabled]:bg-inherit data-[drag-active]:bg-accent data-[drag-reject]:bg-destructive/30 data-[disabled]:opacity-50",
+      "border-input hover:border-accent-foreground/50 hover:bg-accent focus-visible:ring-ring data-[drag-active]:border-accent-foreground/50 data-[drag-reject]:border-destructive data-[drag-active]:bg-accent data-[drag-reject]:bg-destructive/30 cursor-pointer rounded-md border-2 border-dashed p-6 shadow-sm transition-colors focus-visible:ring-1 focus-visible:outline-none data-[disabled]:cursor-not-allowed data-[disabled]:border-inherit data-[disabled]:bg-inherit data-[disabled]:opacity-50 data-[drag-reject]:cursor-no-drop data-[no-click]:cursor-default",
       className,
     )}
     {...props}
@@ -62,7 +62,7 @@ export const DropzoneTitle = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <Primitive.h3
     ref={ref}
-    className={cn("font-medium leading-none tracking-tight", className)}
+    className={cn("leading-none font-medium tracking-tight", className)}
     {...props}
   />
 ));
@@ -74,7 +74,7 @@ export const DropzoneDescription = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <Primitive.p
     ref={ref}
-    className={cn("text-sm text-muted-foreground", className)}
+    className={cn("text-muted-foreground text-sm", className)}
     {...props}
   />
 ));
