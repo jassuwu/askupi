@@ -1,11 +1,5 @@
 "use client";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "~/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/components/ui/tabs";
 import {
   PieChart,
@@ -19,8 +13,6 @@ import {
   YAxis,
   CartesianGrid,
 } from "recharts";
-import { Separator } from "~/components/ui/separator";
-import { Badge } from "~/components/ui/badge";
 import {
   BanknoteIcon,
   TrendingDownIcon,
@@ -139,82 +131,78 @@ export function TransactionSummary({ data }: TransactionSummaryProps) {
     }));
 
   return (
-    <div className="w-full space-y-6">
+    <div className="w-full space-y-5">
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Total Spent</CardTitle>
-            <TrendingDownIcon className="text-destructive h-4 w-4" />
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+        <Card className="overflow-hidden">
+          <CardHeader className="flex flex-row items-center justify-between py-2 px-4">
+            <CardTitle className="text-xs font-medium">Spent</CardTitle>
+            <TrendingDownIcon className="text-destructive h-3.5 w-3.5" />
           </CardHeader>
-          <CardContent>
-            <div className="text-destructive text-2xl font-bold">
+          <CardContent className="py-2 px-4">
+            <div className="text-destructive text-xl font-bold">
               {formatCurrency(data.summary.total_spent)}
             </div>
-            <p className="text-muted-foreground text-xs">
-              {data.summary.start_date
-                ? `From ${formatDate(data.summary.start_date)} to ${formatDate(data.summary.end_date)}`
-                : ""}
-            </p>
           </CardContent>
         </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">
-              Total Received
-            </CardTitle>
-            <TrendingUpIcon className="h-4 w-4 text-emerald-500" />
+        <Card className="overflow-hidden">
+          <CardHeader className="flex flex-row items-center justify-between py-2 px-4">
+            <CardTitle className="text-xs font-medium">Received</CardTitle>
+            <TrendingUpIcon className="h-3.5 w-3.5 text-emerald-500" />
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-emerald-500">
+          <CardContent className="py-2 px-4">
+            <div className="text-xl font-bold text-emerald-500">
               {formatCurrency(data.summary.total_received)}
             </div>
-            <p className="text-muted-foreground text-xs">
-              From {data.summary.transaction_count} transactions
-            </p>
           </CardContent>
         </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Net Change</CardTitle>
-            <BanknoteIcon className="text-primary h-4 w-4" />
+        <Card className="overflow-hidden">
+          <CardHeader className="flex flex-row items-center justify-between py-2 px-4">
+            <CardTitle className="text-xs font-medium">Net</CardTitle>
+            <BanknoteIcon className="text-primary h-3.5 w-3.5" />
           </CardHeader>
-          <CardContent>
+          <CardContent className="py-2 px-4">
             <div
-              className={`text-2xl font-bold ${data.summary.net_change >= 0 ? "text-emerald-500" : "text-destructive"}`}
+              className={`text-xl font-bold ${data.summary.net_change >= 0 ? "text-emerald-500" : "text-destructive"}`}
             >
               {formatCurrency(data.summary.net_change)}
             </div>
-            <p className="text-muted-foreground text-xs">
-              {data.summary.net_change >= 0
-                ? "Net positive balance"
-                : "Net negative balance"}
-            </p>
           </CardContent>
         </Card>
+      </div>
+
+      <div className="text-xs text-muted-foreground text-center">
+        {data.summary.start_date
+          ? `${formatDate(data.summary.start_date)} to ${formatDate(data.summary.end_date)} • ${data.summary.transaction_count} transactions`
+          : ""}
       </div>
 
       {/* Main Content Tabs */}
       <Tabs defaultValue="overview" className="w-full">
         <TabsList className="grid w-full grid-cols-4">
-          <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="transactions">Transactions</TabsTrigger>
-          <TabsTrigger value="insights">Insights</TabsTrigger>
-          <TabsTrigger value="recommendations">Recommendations</TabsTrigger>
+          <TabsTrigger value="overview" className="text-xs">
+            Overview
+          </TabsTrigger>
+          <TabsTrigger value="insights" className="text-xs">
+            Insights
+          </TabsTrigger>
+          <TabsTrigger value="transactions" className="text-xs">
+            Transactions
+          </TabsTrigger>
+          <TabsTrigger value="recommendations" className="text-xs">
+            Tips
+          </TabsTrigger>
         </TabsList>
 
         {/* Overview Tab */}
-        <TabsContent value="overview" className="space-y-6">
-          <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+        <TabsContent value="overview" className="space-y-4 pt-4">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             {/* Category Breakdown - Pie Chart */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Spending by Category</CardTitle>
-                <CardDescription>
-                  Distribution of your spending across different categories
-                </CardDescription>
+            <Card className="overflow-hidden">
+              <CardHeader className="py-3 px-4">
+                <CardTitle className="text-sm">Category Spending</CardTitle>
               </CardHeader>
-              <CardContent className="h-80">
+              <CardContent className="p-2 h-72">
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
                     <Pie
@@ -250,14 +238,11 @@ export function TransactionSummary({ data }: TransactionSummaryProps) {
             </Card>
 
             {/* Top Expenses - Bar Chart */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Top Expenses</CardTitle>
-                <CardDescription>
-                  Your biggest spending categories
-                </CardDescription>
+            <Card className="overflow-hidden">
+              <CardHeader className="py-3 px-4">
+                <CardTitle className="text-sm">Top Expenses</CardTitle>
               </CardHeader>
-              <CardContent className="h-80">
+              <CardContent className="p-2 h-72">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={barChartData} layout="vertical">
                     <CartesianGrid strokeDasharray="3 3" />
@@ -267,10 +252,10 @@ export function TransactionSummary({ data }: TransactionSummaryProps) {
                         formatCurrency(value).split(".")[0]
                       }
                     />
-                    <YAxis type="category" dataKey="name" width={100} />
+                    <YAxis type="category" dataKey="name" width={80} />
                     <Tooltip
                       formatter={(value: number) => formatCurrency(value)}
-                      labelFormatter={(value: string) => `Category: ${value}`}
+                      labelFormatter={(value: string) => `${value}`}
                     />
                     <Bar dataKey="amount" fill="#8884d8">
                       {barChartData.map((entry, index) => (
@@ -288,47 +273,43 @@ export function TransactionSummary({ data }: TransactionSummaryProps) {
               </CardContent>
             </Card>
           </div>
+        </TabsContent>
 
-          {/* Key Insights */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <LightbulbIcon className="h-5 w-5 text-yellow-500" />
+        {/* Insights Tab */}
+        <TabsContent value="insights" className="pt-4">
+          <Card className="overflow-hidden">
+            <CardHeader className="py-3 px-4">
+              <CardTitle className="text-sm flex items-center gap-1.5">
+                <LightbulbIcon className="h-3.5 w-3.5 text-yellow-500" />
                 Key Insights
               </CardTitle>
-              <CardDescription>
-                Important observations from your spending patterns
-              </CardDescription>
             </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 gap-4">
-                {data.insights.slice(0, 3).map((insight, index) => (
+            <CardContent className="px-4">
+              <div className="grid grid-cols-1 gap-3">
+                {data.insights.map((insight, index) => (
                   <div
                     key={index}
-                    className="flex items-start gap-4 rounded-lg border p-4"
+                    className="flex items-start gap-3 rounded-lg border p-3 text-sm"
                   >
                     <div className="mt-0.5">
                       {insight.type === "saving_opportunity" && (
-                        <PiggyBankIcon className="h-5 w-5 text-emerald-500" />
+                        <PiggyBankIcon className="h-4 w-4 text-emerald-500" />
                       )}
                       {insight.type === "spending_pattern" && (
-                        <TrendingDownIcon className="h-5 w-5 text-blue-500" />
+                        <TrendingDownIcon className="h-4 w-4 text-blue-500" />
                       )}
                       {insight.type === "anomaly" && (
-                        <ZapIcon className="h-5 w-5 text-amber-500" />
+                        <ZapIcon className="h-4 w-4 text-amber-500" />
                       )}
                       {insight.type === "tip" && (
-                        <LightbulbIcon className="h-5 w-5 text-yellow-500" />
+                        <LightbulbIcon className="h-4 w-4 text-yellow-500" />
                       )}
                     </div>
-                    <div className="space-y-1">
-                      <Badge variant="outline">
-                        {insight.type.replace("_", " ")}
-                      </Badge>
+                    <div>
                       <p>{insight.description}</p>
                       {insight.impact !== null && (
-                        <p className="text-muted-foreground text-sm">
-                          Potential impact: {formatCurrency(insight.impact)}
+                        <p className="text-muted-foreground text-xs mt-1">
+                          Impact: {formatCurrency(insight.impact)}
                         </p>
                       )}
                     </div>
@@ -340,26 +321,27 @@ export function TransactionSummary({ data }: TransactionSummaryProps) {
         </TabsContent>
 
         {/* Transactions Tab */}
-        <TabsContent value="transactions">
-          <Card>
-            <CardHeader>
-              <CardTitle>All Transactions</CardTitle>
-              <CardDescription>
-                Complete list of transactions from{" "}
-                {formatDate(data.summary.start_date)}
-                to {formatDate(data.summary.end_date)}
-              </CardDescription>
+        <TabsContent value="transactions" className="pt-4">
+          <Card className="overflow-hidden">
+            <CardHeader className="py-3 px-4">
+              <CardTitle className="text-sm">Transactions</CardTitle>
             </CardHeader>
-            <CardContent>
-              <ScrollArea className="h-[500px]">
-                <div className="rounded-md border">
-                  <table className="w-full text-sm">
+            <CardContent className="p-0">
+              <ScrollArea className="h-[400px]">
+                <div className="border-t">
+                  <table className="w-full text-xs">
                     <thead className="bg-muted/50 border-b">
                       <tr className="divide-x">
-                        <th className="px-4 py-2 font-medium">Date</th>
-                        <th className="px-4 py-2 font-medium">Description</th>
-                        <th className="px-4 py-2 font-medium">Category</th>
-                        <th className="px-4 py-2 text-right font-medium">
+                        <th className="px-3 py-2 font-medium text-left">
+                          Date
+                        </th>
+                        <th className="px-3 py-2 font-medium text-left">
+                          Description
+                        </th>
+                        <th className="px-3 py-2 font-medium text-left">
+                          Category
+                        </th>
+                        <th className="px-3 py-2 text-right font-medium">
                           Amount
                         </th>
                       </tr>
@@ -367,19 +349,19 @@ export function TransactionSummary({ data }: TransactionSummaryProps) {
                     <tbody className="divide-y">
                       {data.transactions.map((transaction, index) => (
                         <tr key={index} className="divide-x">
-                          <td className="px-4 py-2">
+                          <td className="px-3 py-2 whitespace-nowrap">
                             {formatDate(transaction.date)}
                           </td>
-                          <td className="px-4 py-2">
+                          <td className="px-3 py-2 max-w-[180px] truncate">
                             {transaction.description}
                           </td>
-                          <td className="px-4 py-2">
-                            <Badge className="capitalize" variant="outline">
+                          <td className="px-3 py-2">
+                            <span className="inline-flex capitalize text-[10px] px-1.5 py-0.5 rounded-full bg-muted">
                               {transaction.category}
-                            </Badge>
+                            </span>
                           </td>
                           <td
-                            className={`px-4 py-2 text-right ${transaction.amount < 0 ? "text-red-500" : "text-green-500"}`}
+                            className={`px-3 py-2 text-right whitespace-nowrap ${transaction.amount < 0 ? "text-red-500" : "text-green-500"}`}
                           >
                             {formatCurrency(transaction.amount)}
                           </td>
@@ -393,83 +375,34 @@ export function TransactionSummary({ data }: TransactionSummaryProps) {
           </Card>
         </TabsContent>
 
-        {/* Insights Tab */}
-        <TabsContent value="insights">
-          <Card>
-            <CardHeader>
-              <CardTitle>Spending Insights</CardTitle>
-              <CardDescription>
-                Detailed analysis of your spending patterns and opportunities
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <ScrollArea className="h-[500px]">
-                <div className="space-y-6">
-                  {data.insights.map((insight, index) => (
-                    <div key={index} className="flex flex-col space-y-2">
-                      <div className="flex items-center gap-3">
-                        <div className="bg-primary/10 rounded-full p-2">
-                          {insight.type === "saving_opportunity" && (
-                            <PiggyBankIcon className="h-5 w-5 text-emerald-500" />
-                          )}
-                          {insight.type === "spending_pattern" && (
-                            <TrendingDownIcon className="h-5 w-5 text-blue-500" />
-                          )}
-                          {insight.type === "anomaly" && (
-                            <ZapIcon className="h-5 w-5 text-amber-500" />
-                          )}
-                          {insight.type === "tip" && (
-                            <LightbulbIcon className="h-5 w-5 text-yellow-500" />
-                          )}
-                        </div>
-                        <div>
-                          <Badge variant="outline" className="capitalize">
-                            {insight.type.replace(/_/g, " ")}
-                          </Badge>
-                          {insight.impact !== null && (
-                            <Badge variant="outline" className="ml-2">
-                              Impact: {formatCurrency(insight.impact)}
-                            </Badge>
-                          )}
-                        </div>
-                      </div>
-                      <p className="ml-10 text-base">{insight.description}</p>
-                      <Separator className="mt-4" />
-                    </div>
-                  ))}
-                </div>
-              </ScrollArea>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
         {/* Recommendations Tab */}
-        <TabsContent value="recommendations">
-          <Card>
-            <CardHeader>
-              <CardTitle>Saving Recommendations</CardTitle>
-              <CardDescription>
-                Actions you can take to improve your financial health
-              </CardDescription>
+        <TabsContent value="recommendations" className="pt-4">
+          <Card className="overflow-hidden">
+            <CardHeader className="py-3 px-4">
+              <CardTitle className="text-sm flex items-center gap-1.5">
+                <PiggyBankIcon className="h-3.5 w-3.5 text-emerald-500" />
+                Saving Tips
+              </CardTitle>
             </CardHeader>
-            <CardContent>
-              <ScrollArea className="h-[500px]">
-                <div className="space-y-6">
-                  {data.recommendations.map((recommendation, index) => (
-                    <div key={index} className="rounded-lg border p-4">
-                      <div className="flex items-start justify-between">
-                        <div className="flex items-center gap-2">
-                          <PiggyBankIcon className="h-5 w-5 text-emerald-500" />
-                          <Badge variant="outline" className="capitalize">
-                            {recommendation.category}
-                          </Badge>
-                        </div>
-                      </div>
-                      <p className="mt-2">{recommendation.action}</p>
+            <CardContent className="px-4">
+              <div className="grid grid-cols-1 gap-3">
+                {data.recommendations.map((recommendation, index) => (
+                  <div key={index} className="border rounded-lg p-3 text-sm">
+                    <div className="flex items-center gap-2 mb-1.5">
+                      <span className="inline-flex capitalize text-[10px] px-1.5 py-0.5 rounded-full bg-muted">
+                        {recommendation.category}
+                      </span>
+                      {recommendation.potential_savings > 0 && (
+                        <span className="text-xs text-emerald-500">
+                          Save{" "}
+                          {formatCurrency(recommendation.potential_savings)}
+                        </span>
+                      )}
                     </div>
-                  ))}
-                </div>
-              </ScrollArea>
+                    <p>{recommendation.action}</p>
+                  </div>
+                ))}
+              </div>
             </CardContent>
           </Card>
         </TabsContent>

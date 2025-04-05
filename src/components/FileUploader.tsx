@@ -25,8 +25,8 @@ import {
   FormMessage,
 } from "~/components/ui/form";
 
-// 1 MB
-const MAX_FILE_SIZE = 1e6;
+// 4 MB
+const MAX_FILE_SIZE = 4e6;
 
 const FormSchema = z.object({
   files: z
@@ -39,8 +39,11 @@ const FormSchema = z.object({
             "File exceeds max file size",
           )
           .refine(
-            (file) => file.type === "application/pdf",
-            "Only PDF files are allowed",
+            (file) =>
+              file.type === "application/pdf" ||
+              file.type === "text/csv" ||
+              file.type === "text/html",
+            "Only PDF, CSV and HTML files are allowed",
           ),
       }),
     )
@@ -83,13 +86,19 @@ export function FileUploader({
     <Form {...form}>
       <form
         onSubmit={form.handleSubmit(handleSubmit)}
-        className="flex w-full flex-col items-center gap-6"
+        className="flex w-full flex-col items-center gap-4"
       >
         {showBackButton && (
           <div className="mb-2 flex w-full items-center justify-start">
-            <Button variant="outline" onClick={onReset} className="gap-2">
-              <ArrowLeft className="h-4 w-4" />
-              Try Another File
+            <Button
+              variant="outline"
+              onClick={onReset}
+              size="sm"
+              className="gap-1.5"
+              disabled={isProcessing}
+            >
+              <ArrowLeft className="h-3.5 w-3.5" />
+              Back
             </Button>
           </div>
         )}
@@ -104,12 +113,12 @@ export function FileUploader({
               const errors = fileRejection.errors.map((err) => err.code);
 
               if (errors.includes(ErrorCode.FileTooLarge)) {
-                toast.error("Whoa there, that file's too big!", {
-                  description: `Keep it under ${prettyBytes(MAX_FILE_SIZE)}, please.`,
+                toast.error("File too large", {
+                  description: `Max size: ${prettyBytes(MAX_FILE_SIZE)}`,
                 });
               } else if (errors.includes(ErrorCode.FileInvalidType)) {
-                toast.error("PDF files only!", {
-                  description: "We can't read anything else right now.",
+                toast.error("Unsupported file format", {
+                  description: "We only accept PDF, CSV and HTML files",
                 });
               }
 
@@ -117,6 +126,7 @@ export function FileUploader({
               fields.forEach((_, index) => remove(index));
             });
           }}
+          disabled={isProcessing}
         >
           {({ maxSize }) => (
             <FormField
@@ -124,35 +134,30 @@ export function FileUploader({
               name="files"
               render={({ field }) => (
                 <FormItem>
-                  <DropzoneZone className="flex justify-center">
+                  <DropzoneZone
+                    className={`flex justify-center transition-colors ${isProcessing ? "opacity-60 cursor-not-allowed" : ""}`}
+                  >
                     <FormControl>
                       <DropzoneInput
                         disabled={field.disabled || isProcessing}
                         name={field.name}
                         onBlur={field.onBlur}
                         ref={field.ref}
-                        accept="application/pdf"
+                        accept="application/pdf, text/csv, text/html"
                       />
                     </FormControl>
-                    <div className="flex flex-col items-center gap-4">
+                    <div className="flex flex-col items-center gap-3 py-8">
                       <DropzoneUploadIcon />
-                      <div className="grid gap-2">
-                        <DropzoneTitle className="text-center font-bold">
-                          Drop your UPI statement here
+                      <div className="text-center">
+                        <DropzoneTitle className="text-base font-medium">
+                          {isProcessing
+                            ? "Processing your statement..."
+                            : "Drop your UPI statement"}
                         </DropzoneTitle>
-                        <DropzoneDescription className="text-center">
-                          <div className="flex flex-col items-center justify-center gap-1">
-                            <span className="flex items-center gap-1">
-                              Max size:{" "}
-                              <span className="font-bold">
-                                {prettyBytes(maxSize ?? 0)}
-                              </span>
-                            </span>
-                            <span className="flex items-center gap-1">
-                              Format:{" "}
-                              <span className="font-bold">PDF only</span>
-                            </span>
-                          </div>
+                        <DropzoneDescription className="text-xs text-muted-foreground mt-1">
+                          {isProcessing
+                            ? "Please wait while we analyze your data"
+                            : `PDF/CSV/HTML • ${prettyBytes(maxSize ?? 0)} max`}
                         </DropzoneDescription>
                       </div>
                     </div>
@@ -163,39 +168,47 @@ export function FileUploader({
             />
           )}
         </Dropzone>
-        {!!fields.length && (
-          <div className="flex flex-col gap-2">
-            {fields.map((field, index) => (
-              <div
-                key={field.id}
-                className="flex items-center justify-between gap-2"
-              >
-                <div className="flex items-center gap-2">
-                  <FileIcon />
-                  {field.file.name}
-                </div>
-                <div className="flex items-center gap-2">
-                  {prettyBytes(field.file.size)}
-                  <Button
-                    className="cursor-pointer"
-                    variant="outline"
-                    size="icon"
-                    onClick={() => remove(index)}
-                    disabled={isProcessing}
-                  >
-                    <X />
-                  </Button>
-                </div>
-              </div>
-            ))}
+        {!!fields.length && !isProcessing && (
+          <div className="flex items-center gap-2 text-sm">
+            <FileIcon className="h-4 w-4" />
+            <span className="truncate max-w-[150px]">
+              {fields[0].file.name}
+            </span>
+            <span className="text-muted-foreground text-xs">
+              {prettyBytes(fields[0].file.size)}
+            </span>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-6 w-6"
+              onClick={() => remove(0)}
+              disabled={isProcessing}
+            >
+              <X className="h-3.5 w-3.5" />
+            </Button>
+          </div>
+        )}
+        {isProcessing && (
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <div className="h-3 w-3 rounded-full bg-primary animate-pulse"></div>
+            <span>
+              {fields.length > 0
+                ? `Processing ${fields[0].file.name}...`
+                : "Processing..."}
+            </span>
           </div>
         )}
         <Button
-          className="cursor-pointer"
+          className="mt-2"
           type="submit"
-          disabled={isProcessing}
+          disabled={isProcessing || fields.length === 0}
+          size={fields.length ? "default" : "lg"}
         >
-          {isProcessing ? "Processing..." : "Let's Go!"}
+          {isProcessing
+            ? "Processing..."
+            : fields.length
+              ? "Analyze"
+              : "Upload UPI Statement"}
         </Button>
       </form>
     </Form>

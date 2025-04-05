@@ -23,7 +23,11 @@ export function Footer() {
             jass
           </Link>
         </div>
-        <ThemeToggle />
+        <div className="flex flex-wrap items-center justify-center gap-4">
+          <p className="text-muted-foreground text-xs">askupi</p>
+          <p className="text-muted-foreground text-md">•</p>
+          <ThemeToggle />
+        </div>
       </div>
     </footer>
   );

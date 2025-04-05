@@ -6,14 +6,12 @@ import {
   Card,
   CardHeader,
   CardTitle,
-  CardDescription,
   CardContent,
   CardFooter,
 } from "./ui/card";
 import { Button } from "./ui/button";
 import { ScrollArea } from "./ui/scroll-area";
 import { FinancialAnalysis } from "./AnalysisProcessor";
-import { Separator } from "./ui/separator";
 
 export interface HistoryItem {
   id: string;
@@ -69,32 +67,26 @@ export function HistoryList({ onSelectHistory }: HistoryListProps) {
   }
 
   return (
-    <Card className="w-full mt-8">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Clock className="h-5 w-5" />
+    <Card className="w-full mt-6 border border-dashed">
+      <CardHeader className="py-3 px-4">
+        <CardTitle className="text-sm flex items-center gap-1.5">
+          <Clock className="h-3.5 w-3.5" />
           Previous Analyses
         </CardTitle>
-        <CardDescription>
-          Your previously analyzed UPI statements
-        </CardDescription>
       </CardHeader>
-      <CardContent>
-        <ScrollArea className="h-[300px] pr-4">
-          <div className="space-y-4">
+      <CardContent className="px-2 py-1">
+        <ScrollArea className="max-h-[220px] pr-2">
+          <div className="space-y-1">
             {historyItems.map((item) => (
-              <div key={item.id} className="flex flex-col">
+              <div key={item.id}>
                 <div
-                  className="flex justify-between items-start p-3 rounded-md hover:bg-muted cursor-pointer"
+                  className="w-full flex justify-between items-center h-auto py-2 px-2 text-start hover:bg-accent hover:text-accent-foreground rounded-md transition-colors cursor-pointer"
                   onClick={() => onSelectHistory(item)}
                 >
-                  <div className="space-y-1">
-                    <p className="font-medium">{item.appName}</p>
-                    <p className="text-sm text-muted-foreground">
-                      {formatDate(item.startDate)} to {formatDate(item.endDate)}
-                    </p>
+                  <div className="space-y-0.5">
+                    <p className="font-medium text-sm">{item.appName}</p>
                     <p className="text-xs text-muted-foreground">
-                      Analyzed on {formatDate(item.analysisDate)}
+                      {formatDate(item.startDate)} — {formatDate(item.endDate)}
                     </p>
                   </div>
                   <Button
@@ -104,19 +96,18 @@ export function HistoryList({ onSelectHistory }: HistoryListProps) {
                       e.stopPropagation();
                       handleDeleteItem(item.id);
                     }}
-                    className="h-8 w-8"
+                    className="h-6 w-6 opacity-50 hover:opacity-100"
                   >
-                    <Trash2 className="h-4 w-4" />
+                    <Trash2 className="h-3.5 w-3.5" />
                     <span className="sr-only">Delete</span>
                   </Button>
                 </div>
-                <Separator className="mt-2" />
               </div>
             ))}
           </div>
         </ScrollArea>
       </CardContent>
-      <CardFooter className="text-xs text-muted-foreground flex items-center justify-center gap-1.5 pt-0">
+      <CardFooter className="text-xs text-muted-foreground justify-center gap-1 py-2 border-t">
         <HardDrive className="h-3 w-3" />
         Saved locally in your browser - no server storage
       </CardFooter>

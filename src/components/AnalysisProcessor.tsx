@@ -89,26 +89,31 @@ export function AnalysisProcessor() {
       abortControllerRef.current = new AbortController();
       const signal = abortControllerRef.current.signal;
 
-      // File uploaded successfully
-      toast.success("Got it! File uploaded", {
-        id: uploadToast,
-      });
-      setIsUploading(false);
-
+      // Send the file to the API
       const response = await fetch("/api", {
         method: "POST",
         body: formData,
         signal,
       });
 
+      // File upload completed
+      setIsUploading(false);
+
       if (!response.ok) {
-        toast.dismiss(uploadToast);
+        toast.error("Upload failed", {
+          id: uploadToast,
+          description: `Error: ${response.status}`,
+        });
         throw new Error(`Upload failed: ${response.status}`);
       }
 
+      // Update toast to show we're now analyzing
+      toast.loading("AI analyzing your statement...", {
+        id: uploadToast,
+      });
+
       // Start AI analysis
       setIsAnalyzing(true);
-      const analysisToast = toast.loading("AI doing its magic... hang tight");
 
       // Parse and validate the response
       const result = await response.json();
@@ -147,13 +152,13 @@ export function AnalysisProcessor() {
         toast.success(
           `Done! Found ${parsedData.transactions.length} transactions`,
           {
-            id: analysisToast,
+            id: uploadToast,
           },
         );
       } catch (parseError) {
         console.error("Error parsing analysis data:", parseError);
         toast.error("Hmm, that doesn't look right", {
-          id: analysisToast,
+          id: uploadToast,
           description:
             "This doesn't seem to be a UPI statement. Try a different file?",
         });
@@ -254,14 +259,13 @@ export function AnalysisProcessor() {
 
   if (error) {
     return (
-      <div className="w-full space-y-6">
+      <div className="w-full space-y-4">
         <Card className="border-destructive">
-          <CardContent className="p-6">
-            <div className="flex flex-col items-center gap-4 text-center">
-              <XCircle className="h-12 w-12 text-destructive" />
-              <h3 className="text-lg font-semibold">That didn&apos;t work</h3>
+          <CardContent className="p-4">
+            <div className="flex flex-col items-center gap-3 text-center">
+              <XCircle className="h-10 w-10 text-destructive" />
               <p className="text-muted-foreground">{error}</p>
-              <Button onClick={handleReset} variant="outline">
+              <Button onClick={handleReset} size="sm">
                 Try Again
               </Button>
             </div>
@@ -274,18 +278,19 @@ export function AnalysisProcessor() {
   return (
     <>
       {!showResults ? (
-        <div className="w-full space-y-6">
+        <div className="w-full space-y-5">
           <FileUploader
             onSubmit={handleFileSubmit}
             isProcessing={isProcessing}
           />
 
           {isAnalyzing && (
-            <div className="mt-4 flex justify-center">
+            <div className="mt-3 flex justify-center">
               <Button
-                variant="outline"
-                className="text-destructive"
+                variant="ghost"
+                size="sm"
                 onClick={handleCancelAnalysis}
+                className="text-muted-foreground hover:text-destructive"
               >
                 Cancel
               </Button>
@@ -296,9 +301,9 @@ export function AnalysisProcessor() {
         </div>
       ) : (
         <>
-          <div className="mb-6 flex w-full items-center justify-start">
-            <Button variant="outline" onClick={handleReset} className="gap-2">
-              Try Another Statement
+          <div className="mb-4 flex w-full items-center justify-start">
+            <Button variant="outline" onClick={handleReset} size="sm">
+              ← New Analysis
             </Button>
           </div>
 
@@ -307,20 +312,16 @@ export function AnalysisProcessor() {
               <TransactionSummary data={analysisData} />
             </div>
           ) : isAnalyzing ? (
-            <div className="bg-card text-card-foreground flex w-full flex-col items-center rounded-lg border p-8 shadow-sm">
-              <Loader2 className="mb-4 h-8 w-8 animate-spin" />
-              <p className="text-muted-foreground">
-                Crunching those numbers...
-              </p>
-              <p className="text-muted-foreground mt-2 text-xs">
-                Just a moment while we analyze everything
-              </p>
+            <div className="flex w-full flex-col items-center rounded-lg border p-6">
+              <Loader2 className="mb-3 h-7 w-7 animate-spin" />
+              <p className="text-sm">Processing...</p>
               <Button
-                variant="outline"
-                className="text-destructive mt-4"
+                variant="ghost"
+                size="sm"
+                className="mt-3 text-muted-foreground hover:text-destructive"
                 onClick={handleCancelAnalysis}
               >
-                Stop Analysis
+                Cancel
               </Button>
             </div>
           ) : null}

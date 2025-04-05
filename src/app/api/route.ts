@@ -11,23 +11,38 @@ import { generateText } from "ai";
  * - Results are returned directly to the client for local storage
  */
 export async function POST(req: Request) {
-  // Extract the file from the form data
-  const formData = await req.formData();
-  const file = formData.get("file") as File;
+  try {
+    // Extract the file from the form data
+    const formData = await req.formData();
+    const file = formData.get("file") as File;
 
-  // Convert file to buffer to send to AI model
-  const fileBuffer = await file.arrayBuffer();
+    if (!file) {
+      return Response.json({ error: "No file provided" }, { status: 400 });
+    }
 
-  // Send to Google AI model - file is not stored, only processed
-  const result = await generateText({
-    model: google("gemini-2.0-flash-thinking-exp-01-21"),
-    messages: [
-      {
-        role: "user",
-        content: [
-          {
-            type: "text",
-            text: `Analyze the attached PDF file containing a UPI transaction statement. Extract all transactions and provide a comprehensive analysis in a structured JSON format with the following:
+    console.log(
+      "Starting analysis for",
+      file.name,
+      "type:",
+      file.type,
+      "size:",
+      file.size,
+    );
+
+    // Convert file to buffer to send to AI model
+    const fileBuffer = await file.arrayBuffer();
+    console.log("File buffer prepared, sending to AI model");
+
+    // Send to Google AI model - file is not stored, only processed
+    const result = await generateText({
+      model: google("gemini-2.0-flash-thinking-exp-01-21"),
+      messages: [
+        {
+          role: "user",
+          content: [
+            {
+              type: "text",
+              text: `Analyze the attached HTML/CSV/PDF file containing a UPI transaction statement. Extract all transactions and provide a comprehensive analysis in a structured JSON format with the following:
 
 1. transactions: Array of transactions with these fields:
    - date (YYYY-MM-DD)
@@ -61,18 +76,35 @@ export async function POST(req: Request) {
    - potential_savings (estimated monthly savings)
 
 Exclude any entries that are not actual transactions (e.g., opening balance, service fees). Ensure the output is valid JSON parsable by Javascript. Do not include any preamble, postamble or conversational text, only the JSON object.`,
-          },
-          {
-            type: "file",
-            mimeType: "application/pdf",
-            data: fileBuffer,
-            filename: file.name,
-          },
-        ],
-      },
-    ],
-  });
+            },
+            {
+              type: "file",
+              mimeType: file.type,
+              data: fileBuffer,
+              filename: file.name,
+            },
+          ],
+        },
+      ],
+    });
 
-  // Return results to the client (no server-side storage)
-  return Response.json(result);
+    // Return results to the client (no server-side storage)
+    console.log("Analysis complete, returning results");
+    return Response.json(result);
+  } catch (error) {
+    console.error("Error during file analysis:", error);
+
+    // Check if it's an AbortError (client canceled the request)
+    if (error instanceof DOMException && error.name === "AbortError") {
+      return Response.json(
+        { error: "Request cancelled by client" },
+        { status: 499 },
+      );
+    }
+
+    return Response.json(
+      { error: error instanceof Error ? error.message : "Unknown error" },
+      { status: 500 },
+    );
+  }
 }
