@@ -6,6 +6,7 @@
     "dev": "next dev --turbopack",
     "build": "next build",
     "start": "next start",
+    "start:standalone": "cp -r public .next/standalone/ && cp -r .next/static .next/standalone/.next/ && bun .next/standalone/server.js",
     "lint": "next lint"
   },
   "dependencies": {
