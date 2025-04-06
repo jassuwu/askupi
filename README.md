@@ -1,3 +1,3 @@
 # askupi
 
-works locally, but i abandon before i deploy 😔
+chat with the statement? soon 😔
