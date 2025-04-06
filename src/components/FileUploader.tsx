@@ -39,11 +39,8 @@ const FormSchema = z.object({
             "File exceeds max file size",
           )
           .refine(
-            (file) =>
-              file.type === "application/pdf" ||
-              file.type === "text/csv" ||
-              file.type === "text/html",
-            "Only PDF, CSV and HTML files are allowed",
+            (file) => file.type === "application/pdf",
+            "Only PDF files are allowed",
           ),
       }),
     )
@@ -86,8 +83,7 @@ export function FileUploader({
     <Form {...form}>
       <form
         onSubmit={form.handleSubmit(handleSubmit)}
-        className="flex w-full flex-col items-center gap-4"
-      >
+        className="flex w-full flex-col items-center gap-4">
         {showBackButton && (
           <div className="mb-2 flex w-full items-center justify-start">
             <Button
@@ -95,8 +91,7 @@ export function FileUploader({
               onClick={onReset}
               size="sm"
               className="gap-1.5"
-              disabled={isProcessing}
-            >
+              disabled={isProcessing}>
               <ArrowLeft className="h-3.5 w-3.5" />
               Back
             </Button>
@@ -118,7 +113,7 @@ export function FileUploader({
                 });
               } else if (errors.includes(ErrorCode.FileInvalidType)) {
                 toast.error("Unsupported file format", {
-                  description: "We only accept PDF, CSV and HTML files",
+                  description: "We only accept PDF files",
                 });
               }
 
@@ -126,8 +121,7 @@ export function FileUploader({
               fields.forEach((_, index) => remove(index));
             });
           }}
-          disabled={isProcessing}
-        >
+          disabled={isProcessing}>
           {({ maxSize }) => (
             <FormField
               control={form.control}
@@ -135,15 +129,14 @@ export function FileUploader({
               render={({ field }) => (
                 <FormItem>
                   <DropzoneZone
-                    className={`flex justify-center transition-colors ${isProcessing ? "opacity-60 cursor-not-allowed" : ""}`}
-                  >
+                    className={`flex justify-center transition-colors ${isProcessing ? "cursor-not-allowed opacity-60" : ""}`}>
                     <FormControl>
                       <DropzoneInput
                         disabled={field.disabled || isProcessing}
                         name={field.name}
                         onBlur={field.onBlur}
                         ref={field.ref}
-                        accept="application/pdf, text/csv, text/html"
+                        accept="application/pdf"
                       />
                     </FormControl>
                     <div className="flex flex-col items-center gap-3 py-8">
@@ -154,10 +147,10 @@ export function FileUploader({
                             ? "Processing your statement..."
                             : "Drop your UPI statement"}
                         </DropzoneTitle>
-                        <DropzoneDescription className="text-xs text-muted-foreground mt-1">
+                        <DropzoneDescription className="text-muted-foreground mt-1 text-xs">
                           {isProcessing
                             ? "Please wait while we analyze your data"
-                            : `PDF/CSV/HTML • ${prettyBytes(maxSize ?? 0)} max`}
+                            : `PDF • ${prettyBytes(maxSize ?? 0)} max`}
                         </DropzoneDescription>
                       </div>
                     </div>
@@ -171,7 +164,7 @@ export function FileUploader({
         {!!fields.length && !isProcessing && (
           <div className="flex items-center gap-2 text-sm">
             <FileIcon className="h-4 w-4" />
-            <span className="truncate max-w-[150px]">
+            <span className="max-w-[150px] truncate">
               {fields[0].file.name}
             </span>
             <span className="text-muted-foreground text-xs">
@@ -182,15 +175,14 @@ export function FileUploader({
               size="icon"
               className="h-6 w-6"
               onClick={() => remove(0)}
-              disabled={isProcessing}
-            >
+              disabled={isProcessing}>
               <X className="h-3.5 w-3.5" />
             </Button>
           </div>
         )}
         {isProcessing && (
-          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-            <div className="h-3 w-3 rounded-full bg-primary animate-pulse"></div>
+          <div className="text-muted-foreground flex items-center gap-2 text-xs">
+            <div className="bg-primary h-3 w-3 animate-pulse rounded-full"></div>
             <span>
               {fields.length > 0
                 ? `Processing ${fields[0].file.name}...`
@@ -202,8 +194,7 @@ export function FileUploader({
           className="mt-2"
           type="submit"
           disabled={isProcessing || fields.length === 0}
-          size={fields.length ? "default" : "lg"}
-        >
+          size={fields.length ? "default" : "lg"}>
           {isProcessing
             ? "Processing..."
             : fields.length

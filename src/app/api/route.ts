@@ -42,7 +42,7 @@ export async function POST(req: Request) {
           content: [
             {
               type: "text",
-              text: `Analyze the attached HTML/CSV/PDF file containing a UPI transaction statement. Extract all transactions and provide a comprehensive analysis in a structured JSON format with the following:
+              text: `Analyze the attached PDF file containing a UPI transaction statement. Extract all transactions and provide a comprehensive analysis in a structured JSON format with the following:
 
 1. transactions: Array of transactions with these fields:
    - date (YYYY-MM-DD)
