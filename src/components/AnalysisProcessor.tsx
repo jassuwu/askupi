@@ -1,13 +1,47 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, Suspense } from "react";
 import { toast } from "sonner";
 import { Loader2, XCircle, ShieldCheck } from "lucide-react";
 import { Button } from "~/components/ui/button";
 import { FileUploader, FileSubmission } from "./FileUploader";
-import { TransactionSummary } from "./TransactionSummary";
 import { Card, CardContent } from "./ui/card";
-import { HistoryList, HistoryItem } from "./HistoryList";
+import { HistoryItem } from "./UnifiedHistoryList";
+import { useChat } from "~/lib/ChatContext";
+import {
+  getHistoryFromStorage,
+  saveHistoryToStorage,
+} from "~/lib/localStorage";
+import { Skeleton } from "~/components/ui/skeleton";
+import dynamic from "next/dynamic";
+
+// Dynamic imports with loading fallbacks
+const DynamicTransactionSummary = dynamic(
+  () =>
+    import("./TransactionSummary").then((mod) => ({
+      default: mod.TransactionSummary,
+    })),
+  {
+    loading: () => <Skeleton className="h-96 w-full" />,
+  },
+);
+
+const DynamicChatUI = dynamic(
+  () => import("./ChatUI").then((mod) => ({ default: mod.ChatUI })),
+  {
+    loading: () => <Skeleton className="h-96 w-full" />,
+  },
+);
+
+const DynamicUnifiedHistoryList = dynamic(
+  () =>
+    import("./UnifiedHistoryList").then((mod) => ({
+      default: mod.UnifiedHistoryList,
+    })),
+  {
+    loading: () => <Skeleton className="h-80 w-full rounded-md" />,
+  },
+);
 
 // Transaction type
 interface Transaction {
@@ -59,15 +93,16 @@ export function AnalysisProcessor() {
   const [showResults, setShowResults] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
+  const { createChat } = useChat();
 
   // Show privacy notice on component mount
   useEffect(() => {
     const hasSeenPrivacyNotice = sessionStorage.getItem("hasSeenPrivacyNotice");
     if (!hasSeenPrivacyNotice) {
       toast.message("Privacy & Data Use", {
-        icon: <ShieldCheck className="h-5 w-5 text-primary" />,
+        icon: <ShieldCheck className="text-primary h-5 w-5" />,
         description:
-          "Your PDF is sent to Google AI for analysis only. Results are stored locally in your browser - not on any servers.",
+          "Your PDF is sent to Google AI for analysis. For performance, only the 30 most significant transactions are processed. Results are stored locally in your browser.",
         duration: 8000,
       });
       sessionStorage.setItem("hasSeenPrivacyNotice", "true");
@@ -100,11 +135,12 @@ export function AnalysisProcessor() {
       setIsUploading(false);
 
       if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
         toast.error("Upload failed", {
           id: uploadToast,
-          description: `Error: ${response.status}`,
+          description: errorData.error || `Error: ${response.status}`,
         });
-        throw new Error(`Upload failed: ${response.status}`);
+        throw new Error(errorData.error || `Upload failed: ${response.status}`);
       }
 
       // Update toast to show we're now analyzing
@@ -115,42 +151,38 @@ export function AnalysisProcessor() {
       // Start AI analysis
       setIsAnalyzing(true);
 
-      // Parse and validate the response
-      const result = await response.json();
-
       try {
-        let parsedData: FinancialAnalysis;
+        // Parse the response data
+        const result = await response.json();
 
-        // Check if result.text is defined and contains JSON
-        if (result.text) {
-          // Find the JSON part between triple backticks if present
-          const jsonMatch = result.text.match(/```json\n([\s\S]*?)\n```/);
-          if (jsonMatch && jsonMatch[1]) {
-            parsedData = JSON.parse(jsonMatch[1]);
-          } else {
-            // Try parsing the whole text as JSON
-            parsedData = JSON.parse(result.text);
-          }
-        } else {
-          // If result is already the parsed JSON
-          parsedData = result;
+        // Check if we got an error response
+        if (result.error) {
+          throw new Error(result.error);
         }
 
-        // Validate that the data seems to be a UPI statement
-        if (!parsedData.transactions || parsedData.transactions.length === 0) {
+        // Verify the response has the required fields
+        if (
+          !result.transactions ||
+          !Array.isArray(result.transactions) ||
+          result.transactions.length === 0
+        ) {
           throw new Error("No transactions found. Is this a UPI statement?");
         }
 
-        // Set the analysis data
-        setAnalysisData(parsedData);
+        if (!result.summary || typeof result.summary !== "object") {
+          throw new Error("Missing summary data in the analysis");
+        }
+
+        // Data is valid, set it to state
+        setAnalysisData(result);
         setShowResults(true);
 
         // Save to localStorage
-        saveToHistory(parsedData);
+        saveToHistory(result);
 
         // Show success message
         toast.success(
-          `Done! Found ${parsedData.transactions.length} transactions`,
+          `Done! Analyzed ${result.summary.transaction_count} transactions`,
           {
             id: uploadToast,
           },
@@ -163,7 +195,9 @@ export function AnalysisProcessor() {
             "This doesn't seem to be a UPI statement. Try a different file?",
         });
         setError(
-          "We couldn't find any UPI transactions in that PDF. Make sure you're uploading the right file.",
+          parseError instanceof Error
+            ? parseError.message
+            : "We couldn't find any UPI transactions in that PDF. Make sure you're uploading the right file.",
         );
       } finally {
         setIsAnalyzing(false);
@@ -219,7 +253,7 @@ export function AnalysisProcessor() {
           firstDescription.includes("gpay") ||
           firstDescription.includes("google pay")
         ) {
-          appName = "Google Pay";
+          appName = "GPay";
         } else if (firstDescription.includes("paytm")) {
           appName = "Paytm";
         }
@@ -235,98 +269,95 @@ export function AnalysisProcessor() {
         data,
       };
 
-      // Get existing history
-      let history: HistoryItem[] = [];
-      const storedHistory = localStorage.getItem("askupi-history");
-      if (storedHistory) {
-        history = JSON.parse(storedHistory);
-      }
-
-      // Add new item and save
+      // Get existing history and add new item
+      const history = getHistoryFromStorage();
       history.unshift(historyItem);
-      localStorage.setItem("askupi-history", JSON.stringify(history));
+      saveHistoryToStorage(history);
+
+      // Create a new chat for this analysis
+      createChat(data);
     } catch (error) {
       console.error("Failed to save to history:", error);
     }
   };
 
-  const handleSelectHistory = (item: HistoryItem) => {
-    setAnalysisData(item.data);
-    setShowResults(true);
-  };
-
   const isProcessing = isUploading || isAnalyzing;
 
-  if (error) {
-    return (
-      <div className="w-full space-y-4">
-        <Card className="border-destructive">
-          <CardContent className="p-4">
-            <div className="flex flex-col items-center gap-3 text-center">
-              <XCircle className="h-10 w-10 text-destructive" />
-              <p className="text-muted-foreground">{error}</p>
-              <Button onClick={handleReset} size="sm">
-                Try Again
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
   return (
-    <>
-      {!showResults ? (
-        <div className="w-full space-y-5">
-          <FileUploader
-            onSubmit={handleFileSubmit}
-            isProcessing={isProcessing}
-          />
-
-          {isAnalyzing && (
-            <div className="mt-3 flex justify-center">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={handleCancelAnalysis}
-                className="text-muted-foreground hover:text-destructive"
-              >
-                Cancel
-              </Button>
-            </div>
-          )}
-
-          <HistoryList onSelectHistory={handleSelectHistory} />
+    <div className="w-full space-y-8">
+      {/* Error display */}
+      {error && (
+        <div className="mx-auto max-w-xl">
+          <Card className="border-destructive bg-destructive/5">
+            <CardContent className="text-destructive flex items-center gap-2 p-4 text-sm">
+              <XCircle className="h-5 w-5 flex-shrink-0" />
+              {error}
+            </CardContent>
+          </Card>
         </div>
-      ) : (
-        <>
-          <div className="mb-4 flex w-full items-center justify-start">
-            <Button variant="outline" onClick={handleReset} size="sm">
-              ← New Analysis
+      )}
+
+      {/* Analysis Results */}
+      {showResults && analysisData ? (
+        <div className="grid w-full gap-6 md:grid-cols-2 md:gap-8 lg:grid-cols-2 xl:gap-10">
+          <div className="h-full">
+            <Suspense
+              fallback={<Skeleton className="h-full min-h-96 w-full" />}>
+              <DynamicTransactionSummary data={analysisData} />
+            </Suspense>
+            <Button
+              variant="outline"
+              size="sm"
+              className="mt-4"
+              onClick={handleReset}>
+              Analyze another statement
             </Button>
           </div>
 
-          {analysisData ? (
-            <div className="w-full">
-              <TransactionSummary data={analysisData} />
-            </div>
-          ) : isAnalyzing ? (
-            <div className="flex w-full flex-col items-center rounded-lg border p-6">
-              <Loader2 className="mb-3 h-7 w-7 animate-spin" />
-              <p className="text-sm">Processing...</p>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="mt-3 text-muted-foreground hover:text-destructive"
-                onClick={handleCancelAnalysis}
-              >
-                Cancel
-              </Button>
-            </div>
-          ) : null}
-        </>
+          <div className="h-full">
+            <Suspense
+              fallback={<Skeleton className="h-full min-h-96 w-full" />}>
+              <DynamicChatUI />
+            </Suspense>
+          </div>
+        </div>
+      ) : (
+        <div className="grid w-full gap-6 md:grid-cols-2 md:gap-8 lg:grid-cols-2 xl:gap-10">
+          {/* File uploader */}
+          <div className="order-1 md:order-none">
+            <FileUploader
+              onSubmit={handleFileSubmit}
+              isProcessing={isProcessing}
+            />
+            {isProcessing ? (
+              <div className="mt-4 flex flex-col items-center justify-center gap-2 text-center">
+                <Loader2 className="h-5 w-5 animate-spin" />
+                <p className="text-muted-foreground text-sm">
+                  {isUploading
+                    ? "Uploading your file..."
+                    : "AI is analyzing your statement..."}
+                </p>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={handleCancelAnalysis}>
+                  Cancel
+                </Button>
+              </div>
+            ) : null}
+          </div>
+
+          {/* Unified History list */}
+          <div className="h-full">
+            <Suspense
+              fallback={
+                <Skeleton className="h-full min-h-80 w-full rounded-md" />
+              }>
+              <DynamicUnifiedHistoryList />
+            </Suspense>
+          </div>
+        </div>
       )}
-    </>
+    </div>
   );
 }

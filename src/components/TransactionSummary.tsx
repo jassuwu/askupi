@@ -82,12 +82,6 @@ const CATEGORY_COLORS: Record<string, string> = {
   other: "#D0D0D0",
 };
 
-// Type for pie chart label
-interface PieChartLabelProps {
-  name: string;
-  percentage: number;
-}
-
 export function TransactionSummary({ data }: TransactionSummaryProps) {
   if (!data || !data.transactions || data.transactions.length === 0) {
     return null;
@@ -98,7 +92,8 @@ export function TransactionSummary({ data }: TransactionSummaryProps) {
     return new Intl.NumberFormat("en-IN", {
       style: "currency",
       currency: "INR",
-      minimumFractionDigits: 2,
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
     }).format(Math.abs(amount));
   };
 
@@ -111,67 +106,108 @@ export function TransactionSummary({ data }: TransactionSummaryProps) {
     });
   };
 
-  // Prepare data for pie chart
+  // Prepare data for pie chart - ensure we handle missing count property
   const pieChartData = Object.entries(data.category_breakdown).map(
-    ([category, info]) => ({
-      name: category.charAt(0).toUpperCase() + category.slice(1),
-      value: Math.abs(info.total),
-      percentage: info.percentage,
-    }),
+    ([category, info]) => {
+      // Handle both the full and minimized data structure
+      const categoryInfo =
+        typeof info === "object" ? info : { total: 0, percentage: 0 };
+      return {
+        name: category.charAt(0).toUpperCase() + category.slice(1),
+        value: Math.abs(
+          typeof categoryInfo.total === "number" ? categoryInfo.total : 0,
+        ),
+        percentage:
+          typeof categoryInfo.percentage === "number"
+            ? categoryInfo.percentage
+            : 0,
+      };
+    },
   );
 
-  // Prepare data for bar chart (top expenses by category)
+  // Prepare data for bar chart - handle simplified category breakdown
   const barChartData = Object.entries(data.category_breakdown)
-    .filter(([, info]) => info.total < 0) // Only show expenses (negative amounts)
-    .sort((a, b) => Math.abs(b[1].total) - Math.abs(a[1].total)) // Sort by absolute amount
+    .filter(([, info]) => {
+      // Handle both data structures and ensure we only show expenses
+      const total =
+        typeof info === "object" && "total" in info
+          ? info.total
+          : typeof info === "number"
+            ? info
+            : 0;
+      return total < 0;
+    })
+    .sort((a, b) => {
+      // Sort by absolute amount
+      const totalA =
+        typeof a[1] === "object" && "total" in a[1]
+          ? a[1].total
+          : typeof a[1] === "number"
+            ? a[1]
+            : 0;
+      const totalB =
+        typeof b[1] === "object" && "total" in b[1]
+          ? b[1].total
+          : typeof b[1] === "number"
+            ? b[1]
+            : 0;
+      return Math.abs(totalB) - Math.abs(totalA);
+    })
     .slice(0, 5) // Take the top 5
-    .map(([category, info]) => ({
-      name: category.charAt(0).toUpperCase() + category.slice(1),
-      amount: Math.abs(info.total), // Use absolute values for the chart
-    }));
+    .map(([category, info]) => {
+      const total =
+        typeof info === "object" && "total" in info
+          ? info.total
+          : typeof info === "number"
+            ? info
+            : 0;
+      return {
+        name: category.charAt(0).toUpperCase() + category.slice(1),
+        amount: Math.abs(total), // Use absolute values for the chart
+      };
+    });
 
   return (
     <div className="w-full space-y-5">
       {/* Summary Cards */}
       <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
         <Card className="overflow-hidden">
-          <CardHeader className="flex flex-row items-center justify-between py-2 px-4">
+          <CardHeader className="flex flex-row items-center justify-between px-4 py-2">
             <CardTitle className="text-xs font-medium">Spent</CardTitle>
             <TrendingDownIcon className="text-destructive h-3.5 w-3.5" />
           </CardHeader>
-          <CardContent className="py-2 px-4">
+          <CardContent className="px-4 py-2">
             <div className="text-destructive text-xl font-bold">
               {formatCurrency(data.summary.total_spent)}
             </div>
           </CardContent>
         </Card>
         <Card className="overflow-hidden">
-          <CardHeader className="flex flex-row items-center justify-between py-2 px-4">
+          <CardHeader className="flex flex-row items-center justify-between px-4 py-2">
             <CardTitle className="text-xs font-medium">Received</CardTitle>
             <TrendingUpIcon className="h-3.5 w-3.5 text-emerald-500" />
           </CardHeader>
-          <CardContent className="py-2 px-4">
+          <CardContent className="px-4 py-2">
             <div className="text-xl font-bold text-emerald-500">
               {formatCurrency(data.summary.total_received)}
             </div>
           </CardContent>
         </Card>
         <Card className="overflow-hidden">
-          <CardHeader className="flex flex-row items-center justify-between py-2 px-4">
+          <CardHeader className="flex flex-row items-center justify-between px-4 py-2">
             <CardTitle className="text-xs font-medium">Net</CardTitle>
             <BanknoteIcon className="text-primary h-3.5 w-3.5" />
           </CardHeader>
-          <CardContent className="py-2 px-4">
+          <CardContent className="px-4 py-2">
             <div
-              className={`text-xl font-bold ${data.summary.net_change >= 0 ? "text-emerald-500" : "text-destructive"}`}
-            >
+              className={`text-xl font-bold ${data.summary.net_change >= 0 ? "text-emerald-500" : "text-destructive"}`}>
               {formatCurrency(data.summary.net_change)}
             </div>
           </CardContent>
         </Card>
       </div>
 
-      <div className="text-xs text-muted-foreground text-center">
+      <div className="text-muted-foreground text-center text-xs">
         {data.summary.start_date
           ? `${formatDate(data.summary.start_date)} to ${formatDate(data.summary.end_date)} • ${data.summary.transaction_count} transactions`
           : ""}
@@ -198,132 +234,146 @@ export function TransactionSummary({ data }: TransactionSummaryProps) {
         <TabsContent value="overview" className="space-y-4 pt-4">
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             {/* Category Breakdown - Pie Chart */}
-            <Card className="overflow-hidden">
-              <CardHeader className="py-3 px-4">
-                <CardTitle className="text-sm">Category Spending</CardTitle>
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm">Category Breakdown</CardTitle>
               </CardHeader>
-              <CardContent className="p-2 h-72">
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie
-                      data={pieChartData}
-                      dataKey="value"
-                      nameKey="name"
-                      cx="50%"
-                      cy="50%"
-                      outerRadius={80}
-                      label={({ name, percentage }: PieChartLabelProps) =>
-                        `${name} (${percentage.toFixed(0)}%)`
-                      }
-                    >
-                      {pieChartData.map((entry, index) => (
-                        <Cell
-                          key={`cell-${index}`}
-                          fill={
-                            CATEGORY_COLORS[entry.name.toLowerCase()] ||
-                            "#D0D0D0"
-                          }
-                        />
-                      ))}
-                    </Pie>
-                    <Tooltip
-                      formatter={(value: number) => formatCurrency(value)}
-                      labelFormatter={(index: number) =>
-                        pieChartData[index]?.name || ""
-                      }
-                    />
-                  </PieChart>
-                </ResponsiveContainer>
+              <CardContent>
+                <div className="h-full min-h-[250px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={pieChartData}
+                        cx="50%"
+                        cy="50%"
+                        labelLine={false}
+                        outerRadius={80}
+                        innerRadius={50}
+                        fill="#8884d8"
+                        dataKey="value"
+                        nameKey="name"
+                        label={({ name, percentage }) =>
+                          `${name} (${typeof percentage === "number" ? percentage.toFixed(1) : "0"}%)`
+                        }>
+                        {pieChartData.map((entry, index) => (
+                          <Cell
+                            key={`cell-${index}`}
+                            fill={
+                              CATEGORY_COLORS[entry.name.toLowerCase()] ||
+                              CATEGORY_COLORS.other
+                            }
+                          />
+                        ))}
+                      </Pie>
+                      <Tooltip
+                        formatter={(value: number) => formatCurrency(value)}
+                      />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
               </CardContent>
             </Card>
 
             {/* Top Expenses - Bar Chart */}
-            <Card className="overflow-hidden">
-              <CardHeader className="py-3 px-4">
+            <Card>
+              <CardHeader className="pb-2">
                 <CardTitle className="text-sm">Top Expenses</CardTitle>
               </CardHeader>
-              <CardContent className="p-2 h-72">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={barChartData} layout="vertical">
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis
-                      type="number"
-                      tickFormatter={(value: number) =>
-                        formatCurrency(value).split(".")[0]
-                      }
-                    />
-                    <YAxis type="category" dataKey="name" width={80} />
-                    <Tooltip
-                      formatter={(value: number) => formatCurrency(value)}
-                      labelFormatter={(value: string) => `${value}`}
-                    />
-                    <Bar dataKey="amount" fill="#8884d8">
-                      {barChartData.map((entry, index) => (
-                        <Cell
-                          key={`cell-${index}`}
-                          fill={
-                            CATEGORY_COLORS[entry.name.toLowerCase()] ||
-                            "#D0D0D0"
-                          }
-                        />
-                      ))}
-                    </Bar>
-                  </BarChart>
-                </ResponsiveContainer>
+              <CardContent>
+                <div className="h-full min-h-[250px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart
+                      data={barChartData}
+                      layout="vertical"
+                      margin={{ top: 5, right: 30, left: 5, bottom: 5 }}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis type="number" hide />
+                      <YAxis
+                        type="category"
+                        dataKey="name"
+                        width={80}
+                        tick={{ fontSize: 12 }}
+                      />
+                      <Tooltip
+                        formatter={(value: number) => formatCurrency(value)}
+                      />
+                      <Bar
+                        dataKey="amount"
+                        fill="#8884d8"
+                        barSize={20}
+                        radius={[0, 4, 4, 0]}>
+                        {barChartData.map((entry, index) => (
+                          <Cell
+                            key={`cell-${index}`}
+                            fill={
+                              CATEGORY_COLORS[entry.name.toLowerCase()] ||
+                              CATEGORY_COLORS.other
+                            }
+                          />
+                        ))}
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
               </CardContent>
             </Card>
           </div>
         </TabsContent>
 
-        {/* Insights Tab */}
+        {/* Insights Tab - Only show if insights exist */}
         <TabsContent value="insights" className="pt-4">
-          <Card className="overflow-hidden">
-            <CardHeader className="py-3 px-4">
-              <CardTitle className="text-sm flex items-center gap-1.5">
-                <LightbulbIcon className="h-3.5 w-3.5 text-yellow-500" />
-                Key Insights
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="px-4">
-              <div className="grid grid-cols-1 gap-3">
-                {data.insights.map((insight, index) => (
-                  <div
-                    key={index}
-                    className="flex items-start gap-3 rounded-lg border p-3 text-sm"
-                  >
-                    <div className="mt-0.5">
-                      {insight.type === "saving_opportunity" && (
-                        <PiggyBankIcon className="h-4 w-4 text-emerald-500" />
-                      )}
-                      {insight.type === "spending_pattern" && (
-                        <TrendingDownIcon className="h-4 w-4 text-blue-500" />
-                      )}
-                      {insight.type === "anomaly" && (
-                        <ZapIcon className="h-4 w-4 text-amber-500" />
-                      )}
-                      {insight.type === "tip" && (
-                        <LightbulbIcon className="h-4 w-4 text-yellow-500" />
-                      )}
+          {data.insights && data.insights.length > 0 ? (
+            <Card className="overflow-hidden">
+              <CardHeader className="px-4 py-3">
+                <CardTitle className="flex items-center gap-1.5 text-sm">
+                  <LightbulbIcon className="h-3.5 w-3.5 text-yellow-500" />
+                  Key Insights
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="px-4">
+                <div className="grid grid-cols-1 gap-3">
+                  {data.insights.map((insight, index) => (
+                    <div
+                      key={index}
+                      className="flex items-start gap-3 rounded-lg border p-3 text-sm">
+                      <div className="mt-0.5">
+                        {insight.type === "saving_opportunity" && (
+                          <PiggyBankIcon className="h-4 w-4 text-emerald-500" />
+                        )}
+                        {insight.type === "spending_pattern" && (
+                          <TrendingDownIcon className="h-4 w-4 text-blue-500" />
+                        )}
+                        {insight.type === "anomaly" && (
+                          <ZapIcon className="h-4 w-4 text-amber-500" />
+                        )}
+                        {insight.type === "tip" && (
+                          <LightbulbIcon className="h-4 w-4 text-yellow-500" />
+                        )}
+                      </div>
+                      <div>
+                        <p>{insight.description}</p>
+                        {insight.impact !== null && (
+                          <p className="text-muted-foreground mt-1 text-xs">
+                            Impact: {formatCurrency(insight.impact)}
+                          </p>
+                        )}
+                      </div>
                     </div>
-                    <div>
-                      <p>{insight.description}</p>
-                      {insight.impact !== null && (
-                        <p className="text-muted-foreground text-xs mt-1">
-                          Impact: {formatCurrency(insight.impact)}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="text-muted-foreground py-10 text-center">
+              No insights available for this statement
+            </div>
+          )}
         </TabsContent>
 
         {/* Transactions Tab */}
         <TabsContent value="transactions" className="pt-4">
           <Card className="overflow-hidden">
-            <CardHeader className="py-3 px-4">
+            <CardHeader className="px-4 py-3">
               <CardTitle className="text-sm">Transactions</CardTitle>
             </CardHeader>
             <CardContent className="p-0">
@@ -332,13 +382,13 @@ export function TransactionSummary({ data }: TransactionSummaryProps) {
                   <table className="w-full text-xs">
                     <thead className="bg-muted/50 border-b">
                       <tr className="divide-x">
-                        <th className="px-3 py-2 font-medium text-left">
+                        <th className="px-3 py-2 text-left font-medium">
                           Date
                         </th>
-                        <th className="px-3 py-2 font-medium text-left">
+                        <th className="px-3 py-2 text-left font-medium">
                           Description
                         </th>
-                        <th className="px-3 py-2 font-medium text-left">
+                        <th className="px-3 py-2 text-left font-medium">
                           Category
                         </th>
                         <th className="px-3 py-2 text-right font-medium">
@@ -352,17 +402,16 @@ export function TransactionSummary({ data }: TransactionSummaryProps) {
                           <td className="px-3 py-2 whitespace-nowrap">
                             {formatDate(transaction.date)}
                           </td>
-                          <td className="px-3 py-2 max-w-[180px] truncate">
+                          <td className="max-w-[180px] truncate px-3 py-2">
                             {transaction.description}
                           </td>
                           <td className="px-3 py-2">
-                            <span className="inline-flex capitalize text-[10px] px-1.5 py-0.5 rounded-full bg-muted">
+                            <span className="bg-muted inline-flex rounded-full px-1.5 py-0.5 text-[10px] capitalize">
                               {transaction.category}
                             </span>
                           </td>
                           <td
-                            className={`px-3 py-2 text-right whitespace-nowrap ${transaction.amount < 0 ? "text-red-500" : "text-green-500"}`}
-                          >
+                            className={`px-3 py-2 text-right whitespace-nowrap ${transaction.amount < 0 ? "text-red-500" : "text-green-500"}`}>
                             {formatCurrency(transaction.amount)}
                           </td>
                         </tr>
@@ -375,36 +424,42 @@ export function TransactionSummary({ data }: TransactionSummaryProps) {
           </Card>
         </TabsContent>
 
-        {/* Recommendations Tab */}
+        {/* Recommendations Tab - Only show if recommendations exist */}
         <TabsContent value="recommendations" className="pt-4">
-          <Card className="overflow-hidden">
-            <CardHeader className="py-3 px-4">
-              <CardTitle className="text-sm flex items-center gap-1.5">
-                <PiggyBankIcon className="h-3.5 w-3.5 text-emerald-500" />
-                Saving Tips
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="px-4">
-              <div className="grid grid-cols-1 gap-3">
-                {data.recommendations.map((recommendation, index) => (
-                  <div key={index} className="border rounded-lg p-3 text-sm">
-                    <div className="flex items-center gap-2 mb-1.5">
-                      <span className="inline-flex capitalize text-[10px] px-1.5 py-0.5 rounded-full bg-muted">
-                        {recommendation.category}
-                      </span>
-                      {recommendation.potential_savings > 0 && (
-                        <span className="text-xs text-emerald-500">
-                          Save{" "}
-                          {formatCurrency(recommendation.potential_savings)}
+          {data.recommendations && data.recommendations.length > 0 ? (
+            <Card className="overflow-hidden">
+              <CardHeader className="px-4 py-3">
+                <CardTitle className="flex items-center gap-1.5 text-sm">
+                  <PiggyBankIcon className="h-3.5 w-3.5 text-emerald-500" />
+                  Saving Tips
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="px-4">
+                <div className="grid grid-cols-1 gap-3">
+                  {data.recommendations.map((recommendation, index) => (
+                    <div key={index} className="rounded-lg border p-3 text-sm">
+                      <div className="mb-1.5 flex items-center gap-2">
+                        <span className="bg-muted inline-flex rounded-full px-1.5 py-0.5 text-[10px] capitalize">
+                          {recommendation.category}
                         </span>
-                      )}
+                        {recommendation.potential_savings > 0 && (
+                          <span className="text-xs text-emerald-500">
+                            Save{" "}
+                            {formatCurrency(recommendation.potential_savings)}
+                          </span>
+                        )}
+                      </div>
+                      <p>{recommendation.action}</p>
                     </div>
-                    <p>{recommendation.action}</p>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="text-muted-foreground py-10 text-center">
+              No recommendations available for this statement
+            </div>
+          )}
         </TabsContent>
       </Tabs>
     </div>

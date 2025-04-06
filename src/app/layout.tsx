@@ -5,6 +5,9 @@ import "~/app/globals.css";
 import { env } from "~/env";
 import { ThemeProvider, Footer } from "~/components";
 import { Toaster } from "~/components/ui/sonner";
+import { ChatProvider } from "~/lib/ChatContext";
+
+export const experimental_ppr = true;
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -57,10 +60,11 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} min-h-screen font-sans antialiased flex flex-col`}
-      >
+        className={`${geistSans.variable} ${geistMono.variable} flex min-h-screen w-full flex-col font-sans antialiased`}>
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
-          <div className="flex-grow">{children}</div>
+          <ChatProvider>
+            <div className="w-full flex-grow">{children}</div>
+          </ChatProvider>
           <Footer />
         </ThemeProvider>
         <Toaster />

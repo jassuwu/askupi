@@ -35,24 +35,23 @@ export async function POST(req: Request) {
 
     // Send to Google AI model - file is not stored, only processed
     const result = await generateText({
-      model: google("gemini-2.0-flash-thinking-exp-01-21"),
+      model: google("gemini-2.0-flash-exp"),
       messages: [
         {
           role: "user",
           content: [
             {
               type: "text",
-              text: `Analyze the attached PDF file containing a UPI transaction statement. Extract all transactions and provide a comprehensive analysis in a structured JSON format with the following:
+              text: `Analyze the attached PDF file containing a UPI transaction statement. Extract key information and provide a minimal, compact JSON response with only essential data:
 
-1. transactions: Array of transactions with these fields:
+1. transactions: Array with transactions with these fields:
    - date (YYYY-MM-DD)
-   - time (HH:MM:SS or null if unavailable)
-   - description (transaction details)
    - amount (numeric value, negative for debits, positive for credits)
-   - upi_id (transaction reference or null if unavailable)
-   - category (categorize each transaction: 'food', 'shopping', 'entertainment', 'utilities', 'transport', 'health', 'education', 'travel', 'subscription', 'other')
+   - description (keep brief, max 50 chars)
+   - category (categorize as: 'food', 'shopping', 'entertainment', 'utilities', 'transport', 'health', 'education', 'travel', 'subscription', 'other')
+   - upi_id (include only if critical, otherwise null)
 
-2. summary: Object containing:
+2. summary: Only these essential fields:
    - total_spent (total of all negative transactions)
    - total_received (total of all positive transactions)
    - net_change (net change in balance)
@@ -60,22 +59,20 @@ export async function POST(req: Request) {
    - start_date (earliest transaction date)
    - end_date (latest transaction date)
 
-3. category_breakdown: Object with category names as keys and the following for each:
-   - total (total amount spent in this category)
-   - percentage (percentage of total spending)
-   - count (number of transactions in this category)
+3. category_breakdown: Just category names as keys with total and percentage fields
 
-4. insights: Array of objects with:
+4. insights: Maximum 3 most important insights with:
    - type ('saving_opportunity', 'spending_pattern', 'anomaly', 'tip')
-   - description (clear explanation of the insight)
+   - description (keep under 80 chars)
    - impact (estimated financial impact if applicable, null if not)
 
-5. recommendations: Array of objects with:
-   - category (which spending category this applies to)
-   - action (recommended action to save money)
-   - potential_savings (estimated monthly savings)
+5. recommendations: Maximum 3 key recommendations with:
+   - category
+   - action (keep under 80 chars)
+   - potential_savings
 
-Exclude any entries that are not actual transactions (e.g., opening balance, service fees). Ensure the output is valid JSON parsable by Javascript. Do not include any preamble, postamble or conversational text, only the JSON object.`,
+Exclude any entries that are not actual transactions (e.g., opening balance, service fees). 
+IMPORTANT: Format your response as PURE JSON without any markdown formatting or code blocks. Return ONLY a clean, valid JSON object - no prefix/suffix text, no backticks, no json keywords.`,
             },
             {
               type: "file",
@@ -88,9 +85,52 @@ Exclude any entries that are not actual transactions (e.g., opening balance, ser
       ],
     });
 
-    // Return results to the client (no server-side storage)
-    console.log("Analysis complete, returning results");
-    return Response.json(result);
+    // Clean and parse the response
+    console.log("Analysis complete, parsing results");
+
+    let cleanedResponse = result.text;
+
+    // Try to extract JSON if it's wrapped in code blocks
+    const jsonMatch = cleanedResponse.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
+    if (jsonMatch && jsonMatch[1]) {
+      cleanedResponse = jsonMatch[1];
+    }
+
+    // Remove any non-JSON text before or after
+    cleanedResponse = cleanedResponse.trim();
+    // If it starts with non-JSON character, try to find the start of JSON
+    if (cleanedResponse.charAt(0) !== "{") {
+      const jsonStart = cleanedResponse.indexOf("{");
+      if (jsonStart >= 0) {
+        cleanedResponse = cleanedResponse.substring(jsonStart);
+      }
+    }
+    // If it ends with non-JSON character, try to find the end of JSON
+    if (cleanedResponse.charAt(cleanedResponse.length - 1) !== "}") {
+      const jsonEnd = cleanedResponse.lastIndexOf("}");
+      if (jsonEnd >= 0) {
+        cleanedResponse = cleanedResponse.substring(0, jsonEnd + 1);
+      }
+    }
+
+    // Try to parse the cleaned response
+    try {
+      const parsedData = JSON.parse(cleanedResponse);
+      return Response.json(parsedData);
+    } catch (parseError) {
+      console.error("Failed to parse JSON response:", parseError);
+      return Response.json(
+        {
+          error: "Failed to parse analysis data",
+          details:
+            parseError instanceof Error
+              ? parseError.message
+              : "Unknown parsing error",
+          rawResponse: result.text.substring(0, 1000), // Include part of the raw response for debugging
+        },
+        { status: 500 },
+      );
+    }
   } catch (error) {
     console.error("Error during file analysis:", error);
 

@@ -4,22 +4,20 @@ import { ThemeToggle } from "./theme-toggle";
 
 export function Footer() {
   return (
-    <footer className="w-full py-6 mt-auto">
-      <div className="flex flex-col items-center justify-center gap-4">
+    <footer className="mt-auto w-full py-4 sm:py-6">
+      <div className="mx-auto flex max-w-[1600px] flex-col items-center justify-center gap-3 px-4 sm:px-6 md:px-8 lg:px-12">
         <div className="flex flex-wrap items-center justify-center gap-2">
           <Link
-            className="text-muted-foreground underline hover:text-primary transition-all duration-300"
+            className="text-muted-foreground hover:text-primary underline transition-all duration-300"
             href="https://github.com/jassuwu/askupi"
-            target="_blank"
-          >
+            target="_blank">
             vibecoded
           </Link>
           by
           <Link
-            className="text-muted-foreground underline hover:text-primary transition-all duration-300"
+            className="text-muted-foreground hover:text-primary underline transition-all duration-300"
             href="https://jassuwu.com"
-            target="_blank"
-          >
+            target="_blank">
             jass
           </Link>
         </div>
